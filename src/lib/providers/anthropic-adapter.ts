@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 export class AnthropicAdapter implements ProviderAdapter {
     readonly name = 'Anthropic';
-    readonly models = ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'claude-2.1'];
+    readonly models = ['claude-sonnet-4-5-20250929', 'claude-haiku-4-5-20251001', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'];
     private client: Anthropic;
 
     constructor(apiKey?: string) {
@@ -17,7 +17,7 @@ export class AnthropicAdapter implements ProviderAdapter {
     async testConnection(): Promise<boolean> {
         try {
             await this.client.messages.create({
-                model: 'claude-3-haiku-20240307',
+                model: 'claude-3-5-haiku-20241022',
                 max_tokens: 1,
                 messages: [{ role: 'user', content: 'Ping' }],
             });
@@ -30,7 +30,7 @@ export class AnthropicAdapter implements ProviderAdapter {
 
     async generate(prompt: string, options?: GenerateOptions): Promise<string> {
         const response = await this.client.messages.create({
-            model: options?.model || 'claude-3-sonnet-20240229',
+            model: options?.model || 'claude-sonnet-4-5-20250929',
             max_tokens: options?.maxTokens || 4096,
             temperature: options?.temperature ?? 0.7,
             messages: [{ role: 'user', content: prompt }],
@@ -44,7 +44,7 @@ export class AnthropicAdapter implements ProviderAdapter {
         const generateFn = async () => {
             const systemPrompt = 'You are a helpful assistant that outputs only valid JSON. Do not include any explanation or markdown formatting.';
             const response = await this.client.messages.create({
-                model: options?.model || 'claude-3-sonnet-20240229',
+                model: options?.model || 'claude-sonnet-4-5-20250929',
                 max_tokens: options?.maxTokens || 4096,
                 temperature: options?.temperature ?? 0,
                 system: systemPrompt,

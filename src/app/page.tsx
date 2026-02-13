@@ -12,7 +12,7 @@ export default function ConvergencePage() {
         writerProvider: 'openai' as ProviderType,
         collaboratorProvider: 'anthropic' as ProviderType,
         writerModel: 'gpt-4o-mini',
-        collaboratorModel: 'claude-3-haiku-20240307',
+        collaboratorModel: 'claude-haiku-4-5-20251001',
         maxRounds: 5,
         scoreThreshold: 9,
         showLog: true,

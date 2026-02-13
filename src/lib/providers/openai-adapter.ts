@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 export class OpenAIAdapter implements ProviderAdapter {
     readonly name = 'OpenAI';
-    readonly models = ['gpt-4-turbo-preview', 'gpt-4', 'gpt-3.5-turbo'];
+    readonly models = ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini'];
     private client: OpenAI;
 
     constructor(apiKey?: string) {
@@ -26,7 +26,7 @@ export class OpenAIAdapter implements ProviderAdapter {
 
     async generate(prompt: string, options?: GenerateOptions): Promise<string> {
         const response = await this.client.chat.completions.create({
-            model: options?.model || 'gpt-4-turbo-preview',
+            model: options?.model || 'gpt-4o',
             messages: [{ role: 'user', content: prompt }],
             temperature: options?.temperature ?? 0.7,
             max_tokens: options?.maxTokens,
@@ -38,7 +38,7 @@ export class OpenAIAdapter implements ProviderAdapter {
     async generateJson<T>(prompt: string, schema: any, options?: GenerateOptions): Promise<T> {
         const generateFn = async () => {
             const response = await this.client.chat.completions.create({
-                model: options?.model || 'gpt-4-turbo-preview',
+                model: options?.model || 'gpt-4o',
                 messages: [
                     {
                         role: 'system',
@@ -47,14 +47,13 @@ export class OpenAIAdapter implements ProviderAdapter {
                     { role: 'user', content: prompt }
                 ],
                 response_format: { type: 'json_object' },
-                temperature: options?.temperature ?? 0, // Lower temperature for more deterministic JSON
+                temperature: options?.temperature ?? 0,
                 max_tokens: options?.maxTokens,
             });
 
             return response.choices[0]?.message?.content || '{}';
         };
 
-        // Treat schema as a Zod schema if it's not already
         const zodSchema = schema instanceof z.ZodType ? schema : z.any();
         return validateAndRetry(generateFn, zodSchema);
     }

@@ -5,27 +5,28 @@ export type ModelOption = { id: string; label: string };
 export const MODEL_REGISTRY: Record<ProviderType, ModelOption[]> = {
     openai: [
         { id: 'gpt-4o', label: 'GPT-4o (Strong)' },
-        { id: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo' },
         { id: 'gpt-4o-mini', label: 'GPT-4o Mini (Fast)' },
-        { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+        { id: 'gpt-4.1', label: 'GPT-4.1' },
+        { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
     ],
     anthropic: [
-        { id: 'claude-3-5-sonnet-20240620', label: 'Claude 3.5 Sonnet (Strong)' },
-        { id: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
-        { id: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet' },
-        { id: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku (Fast)' },
+        { id: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (Strong)' },
+        { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (Fast)' },
+        { id: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
+        { id: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
     ],
     google: [
-        { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Strong)' },
-        { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Fast)' },
-        { id: 'gemini-1.0-pro', label: 'Gemini 1.0 Pro' },
+        { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Fast)' },
+        { id: 'gemini-2.0-pro', label: 'Gemini 2.0 Pro (Strong)' },
+        { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+        { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
     ],
 };
 
 export function getDefaultModels(templateId: string): { writerModel: string; collaboratorModel: string } {
     if (templateId === 'software-spec') {
         return {
-            writerModel: 'claude-3-5-sonnet-20240620',
+            writerModel: 'claude-sonnet-4-5-20250929',
             collaboratorModel: 'gpt-4o',
         };
     }
@@ -33,6 +34,6 @@ export function getDefaultModels(templateId: string): { writerModel: string; col
     // Default (e.g., email-reply) faster/cheaper
     return {
         writerModel: 'gpt-4o-mini',
-        collaboratorModel: 'claude-3-haiku-20240307',
+        collaboratorModel: 'claude-haiku-4-5-20251001',
     };
 }

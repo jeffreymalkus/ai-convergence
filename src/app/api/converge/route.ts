@@ -65,22 +65,25 @@ function normalizeModelId(provider: ProviderType, modelLabel: string): string {
     if (provider === 'openai') {
         if (slug.includes('gpt-4o mini') || slug === 'gpt-4o-mini') return 'gpt-4o-mini';
         if (slug.includes('gpt-4o')) return 'gpt-4o';
-        if (slug.includes('gpt-4.1 mini')) return 'gpt-4.1-mini';
-        if (slug.includes('gpt-3.5 turbo')) return 'gpt-4o-mini';
-        return label; // Pass through if it looks like an ID
+        if (slug.includes('gpt-4.1 mini') || slug === 'gpt-4.1-mini') return 'gpt-4.1-mini';
+        if (slug.includes('gpt-4.1')) return 'gpt-4.1';
+        if (slug.includes('gpt-3.5 turbo')) return 'gpt-4o-mini'; // redirect deprecated model
+        return label;
     }
 
     if (provider === 'google') {
+        if (slug.includes('gemini 2.0 flash') || slug === 'gemini-2.0-flash') return 'gemini-2.0-flash';
+        if (slug.includes('gemini 2.0 pro') || slug === 'gemini-2.0-pro') return 'gemini-2.0-pro';
         if (slug.includes('gemini 1.5 pro')) return 'gemini-1.5-pro';
         if (slug.includes('gemini 1.5 flash')) return 'gemini-1.5-flash';
         return label;
     }
 
     if (provider === 'anthropic') {
-        if (slug.includes('claude 3.5 sonnet')) return 'claude-3-5-sonnet-20240620';
-        if (slug.includes('claude 3 opus')) return 'claude-3-opus-20240229';
-        if (slug.includes('claude 3 sonnet')) return 'claude-3-sonnet-20240229';
-        if (slug.includes('claude 3 haiku')) return 'claude-3-haiku-20240307';
+        if (slug.includes('claude sonnet 4.5') || slug.includes('claude-sonnet-4-5')) return 'claude-sonnet-4-5-20250929';
+        if (slug.includes('claude haiku 4.5') || slug.includes('claude-haiku-4-5')) return 'claude-haiku-4-5-20251001';
+        if (slug.includes('claude 3.5 sonnet') || slug.includes('claude-3-5-sonnet')) return 'claude-3-5-sonnet-20241022';
+        if (slug.includes('claude 3.5 haiku') || slug.includes('claude-3-5-haiku')) return 'claude-3-5-haiku-20241022';
         return label;
     }
 

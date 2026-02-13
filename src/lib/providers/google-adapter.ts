@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 export class GoogleAdapter implements ProviderAdapter {
     readonly name = 'Google';
-    readonly models = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'];
+    readonly models = ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-pro', 'gemini-1.5-flash'];
     private genAI: GoogleGenerativeAI;
 
     constructor(apiKey?: string) {
@@ -15,7 +15,7 @@ export class GoogleAdapter implements ProviderAdapter {
 
     async testConnection(): Promise<boolean> {
         try {
-            const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+            const model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
             await model.generateContent('Ping');
             return true;
         } catch (error) {
@@ -26,7 +26,7 @@ export class GoogleAdapter implements ProviderAdapter {
 
     async generate(prompt: string, options?: GenerateOptions): Promise<string> {
         const model = this.genAI.getGenerativeModel({
-            model: options?.model || 'gemini-1.5-pro'
+            model: options?.model || 'gemini-2.0-flash'
         });
 
         const result = await model.generateContent({
@@ -44,8 +44,7 @@ export class GoogleAdapter implements ProviderAdapter {
     async generateJson<T>(prompt: string, schema: any, options?: GenerateOptions): Promise<T> {
         const generateFn = async () => {
             const model = this.genAI.getGenerativeModel({
-                model: options?.model || 'gemini-1.5-pro',
-                // Note: Some models support responseMimeType: "application/json"
+                model: options?.model || 'gemini-2.0-flash',
             });
 
             const result = await model.generateContent({
@@ -55,13 +54,14 @@ export class GoogleAdapter implements ProviderAdapter {
                 generationConfig: {
                     temperature: options?.temperature ?? 0,
                     maxOutputTokens: options?.maxTokens,
+                    responseMimeType: 'application/json',
                 },
             });
 
             const response = await result.response;
             let text = response.text();
 
-            // Basic cleaning for Gemini if it wraps in markdown
+            // Fallback cleaning if model wraps in markdown despite responseMimeType
             if (text.includes('```json')) {
                 text = text.split('```json')[1].split('```')[0].trim();
             } else if (text.includes('```')) {

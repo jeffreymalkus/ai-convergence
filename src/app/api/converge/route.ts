@@ -40,12 +40,22 @@ const ConvergeRequestSchema = z.object({
     showLog: z.boolean().optional(),
 });
 
-function checkEnv(provider: ProviderType): { keyName: string; isPresent: boolean } {
-    const keyName =
-        provider === 'openai' ? 'OPENAI_API_KEY' :
-            provider === 'anthropic' ? 'ANTHROPIC_API_KEY' :
-                'GOOGLE_API_KEY';
+function checkEnv(provider: string): { keyName: string; isPresent: boolean } {
+    const keyMap: Record<string, string> = {
+        'openai': 'OPENAI_API_KEY',
+        'anthropic': 'ANTHROPIC_API_KEY',
+        'google': 'GOOGLE_API_KEY'
+    };
+    const keyName = keyMap[provider.toLowerCase()] || 'UNKNOWN_KEY';
     return { keyName, isPresent: !!process.env[keyName] };
+}
+
+function normalizeProvider(p: string): ProviderType {
+    const slug = p.toLowerCase().trim();
+    if (slug.includes('openai')) return 'openai';
+    if (slug.includes('google') || slug.includes('gemini')) return 'google';
+    if (slug.includes('anthropic') || slug.includes('claude')) return 'anthropic';
+    throw new Error(`Unsupported provider: ${p}`);
 }
 
 function normalizeModelId(provider: ProviderType, modelLabel: string): string {
@@ -54,26 +64,27 @@ function normalizeModelId(provider: ProviderType, modelLabel: string): string {
 
     if (provider === 'openai') {
         if (slug.includes('gpt-4o mini') || slug === 'gpt-4o-mini') return 'gpt-4o-mini';
-        if (slug.includes('gpt-4o') || slug === 'gpt-4o') return 'gpt-4o';
-        if (slug.includes('gpt-3.5 turbo') || slug === 'gpt-3.5-turbo') return 'gpt-4o-mini';
-        return label; // Fallback to raw label if it might be an ID
+        if (slug.includes('gpt-4o')) return 'gpt-4o';
+        if (slug.includes('gpt-4.1 mini')) return 'gpt-4.1-mini';
+        if (slug.includes('gpt-3.5 turbo')) return 'gpt-4o-mini';
+        return label; // Pass through if it looks like an ID
     }
 
     if (provider === 'google') {
-        if (slug.includes('gemini 1.5 pro') || slug === 'gemini-1.5-pro') return 'gemini-1.5-pro';
-        if (slug.includes('gemini 1.5 flash') || slug === 'gemini-1.5-flash') return 'gemini-1.5-flash';
+        if (slug.includes('gemini 1.5 pro')) return 'gemini-1.5-pro';
+        if (slug.includes('gemini 1.5 flash')) return 'gemini-1.5-flash';
         return label;
     }
 
     if (provider === 'anthropic') {
-        if (slug.includes('claude 3.5 sonnet') || slug === 'claude-3-5-sonnet-20240620') return 'claude-3-5-sonnet-20240620';
+        if (slug.includes('claude 3.5 sonnet')) return 'claude-3-5-sonnet-20240620';
         if (slug.includes('claude 3 opus')) return 'claude-3-opus-20240229';
         if (slug.includes('claude 3 sonnet')) return 'claude-3-sonnet-20240229';
         if (slug.includes('claude 3 haiku')) return 'claude-3-haiku-20240307';
         return label;
     }
 
-    throw new Error(`Unsupported provider: ${provider}`);
+    throw new Error(`Unsupported provider for model normalization: ${provider}`);
 }
 
 export async function POST(req: NextRequest) {
@@ -89,10 +100,25 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        // 2. Body Parsing & Validation
+        // 2. Body Parsing & Normalization
         const body = await req.json();
-        const result = ConvergeRequestSchema.safeParse(body);
 
+        // Surgical Normalization before Zod
+        try {
+            if (body.writerProvider) body.writerProvider = normalizeProvider(body.writerProvider);
+            if (body.collaboratorProvider) body.collaboratorProvider = normalizeProvider(body.collaboratorProvider);
+
+            if (body.writerProvider && body.writerModel) {
+                body.writerModel = normalizeModelId(body.writerProvider, body.writerModel);
+            }
+            if (body.collaboratorProvider && body.collaboratorModel) {
+                body.collaboratorModel = normalizeModelId(body.collaboratorProvider, body.collaboratorModel);
+            }
+        } catch (normError: any) {
+            return NextResponse.json({ success: false, error: normError.message, requestId }, { status: 400 });
+        }
+
+        const result = ConvergeRequestSchema.safeParse(body);
         if (!result.success) {
             return NextResponse.json(
                 { success: false, error: 'Invalid request body', details: result.error.format(), requestId },
@@ -107,28 +133,14 @@ export async function POST(req: NextRequest) {
         const collaboratorEnv = checkEnv(request.collaboratorProvider);
 
         // TEMP DEBUG LOGS
-        console.log(`[DEBUG] rid=${requestId} writer_provider=${request.writerProvider} key=${writerEnv.keyName} found=${writerEnv.isPresent}`);
-        console.log(`[DEBUG] rid=${requestId} collaborator_provider=${request.collaboratorProvider} key=${collaboratorEnv.keyName} found=${collaboratorEnv.isPresent}`);
+        console.log(`[DEBUG] rid=${requestId} writer_provider=${request.writerProvider} key=${writerEnv.keyName} found=${writerEnv.isPresent} model=${request.writerModel}`);
+        console.log(`[DEBUG] rid=${requestId} collaborator_provider=${request.collaboratorProvider} key=${collaboratorEnv.keyName} found=${collaboratorEnv.isPresent} model=${request.collaboratorModel}`);
 
         if (!writerEnv.isPresent) {
             return NextResponse.json({ success: false, error: `Missing ${writerEnv.keyName}`, requestId }, { status: 400 });
         }
         if (!collaboratorEnv.isPresent) {
             return NextResponse.json({ success: false, error: `Missing ${collaboratorEnv.keyName}`, requestId }, { status: 400 });
-        }
-
-        // 4. Model Normalization
-        try {
-            const originalWriterModel = request.writerModel;
-            const originalCollaboratorModel = request.collaboratorModel;
-
-            request.writerModel = normalizeModelId(request.writerProvider, request.writerModel);
-            request.collaboratorModel = normalizeModelId(request.collaboratorProvider, request.collaboratorModel);
-
-            console.log(`[DEBUG] rid=${requestId} writer_model: IN="${originalWriterModel}" OUT="${request.writerModel}"`);
-            console.log(`[DEBUG] rid=${requestId} collaborator_model: IN="${originalCollaboratorModel}" OUT="${request.collaboratorModel}"`);
-        } catch (normError: any) {
-            return NextResponse.json({ success: false, error: normError.message, requestId }, { status: 400 });
         }
 
         // 5. Core Logic with Timeout

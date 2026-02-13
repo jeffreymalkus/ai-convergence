@@ -9,8 +9,12 @@ export const templates: Record<string, ArtifactTemplate> = {
 }
 
 // Get template by ID
-export function getTemplate(id: string): ArtifactTemplate | undefined {
-  return templates[id]
+export function getTemplate(id: string): ArtifactTemplate {
+  const template = templates[id]
+  if (!template) {
+    throw new Error(`Template not found: ${id}`)
+  }
+  return template
 }
 
 // Get all templates as array

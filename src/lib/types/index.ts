@@ -111,7 +111,7 @@ export interface ConvergenceConfig {
 export type StopReason =
   | 'THRESHOLD_MET'
   | 'MAX_ROUNDS'
-  | 'NO_IMPROVEMENTS'
+  | 'NO_IMPROVEMENT'
   | 'ERROR_FALLBACK'
 
 export interface ConvergenceResult {

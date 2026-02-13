@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "smoke": "bun run scripts/smoke-converge.ts"
   },
   "dependencies": {
     "next": "^14.1.0",

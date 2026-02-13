@@ -40,12 +40,40 @@ const ConvergeRequestSchema = z.object({
     showLog: z.boolean().optional(),
 });
 
-function getApiKeyEnv(provider: ProviderType): string {
-    switch (provider) {
-        case 'openai': return 'OPENAI_API_KEY';
-        case 'anthropic': return 'ANTHROPIC_API_KEY';
-        case 'google': return 'GOOGLE_API_KEY';
+function checkEnv(provider: ProviderType): { keyName: string; isPresent: boolean } {
+    const keyName =
+        provider === 'openai' ? 'OPENAI_API_KEY' :
+            provider === 'anthropic' ? 'ANTHROPIC_API_KEY' :
+                'GOOGLE_API_KEY';
+    return { keyName, isPresent: !!process.env[keyName] };
+}
+
+function normalizeModelId(provider: ProviderType, modelLabel: string): string {
+    const label = modelLabel.trim();
+    const slug = label.toLowerCase();
+
+    if (provider === 'openai') {
+        if (slug.includes('gpt-4o mini') || slug === 'gpt-4o-mini') return 'gpt-4o-mini';
+        if (slug.includes('gpt-4o') || slug === 'gpt-4o') return 'gpt-4o';
+        if (slug.includes('gpt-3.5 turbo') || slug === 'gpt-3.5-turbo') return 'gpt-4o-mini';
+        return label; // Fallback to raw label if it might be an ID
     }
+
+    if (provider === 'google') {
+        if (slug.includes('gemini 1.5 pro') || slug === 'gemini-1.5-pro') return 'gemini-1.5-pro';
+        if (slug.includes('gemini 1.5 flash') || slug === 'gemini-1.5-flash') return 'gemini-1.5-flash';
+        return label;
+    }
+
+    if (provider === 'anthropic') {
+        if (slug.includes('claude 3.5 sonnet') || slug === 'claude-3-5-sonnet-20240620') return 'claude-3-5-sonnet-20240620';
+        if (slug.includes('claude 3 opus')) return 'claude-3-opus-20240229';
+        if (slug.includes('claude 3 sonnet')) return 'claude-3-sonnet-20240229';
+        if (slug.includes('claude 3 haiku')) return 'claude-3-haiku-20240307';
+        return label;
+    }
+
+    throw new Error(`Unsupported provider: ${provider}`);
 }
 
 export async function POST(req: NextRequest) {
@@ -74,18 +102,36 @@ export async function POST(req: NextRequest) {
 
         const request = result.data as ConvergeRequest;
 
-        // 3. Env Validation
-        const writerKey = getApiKeyEnv(request.writerProvider);
-        const collaboratorKey = getApiKeyEnv(request.collaboratorProvider);
+        // 3. Env Validation (Canonical)
+        const writerEnv = checkEnv(request.writerProvider);
+        const collaboratorEnv = checkEnv(request.collaboratorProvider);
 
-        if (!process.env[writerKey]) {
-            return NextResponse.json({ success: false, error: `Missing ${writerKey}`, requestId }, { status: 400 });
+        // TEMP DEBUG LOGS
+        console.log(`[DEBUG] rid=${requestId} writer_provider=${request.writerProvider} key=${writerEnv.keyName} found=${writerEnv.isPresent}`);
+        console.log(`[DEBUG] rid=${requestId} collaborator_provider=${request.collaboratorProvider} key=${collaboratorEnv.keyName} found=${collaboratorEnv.isPresent}`);
+
+        if (!writerEnv.isPresent) {
+            return NextResponse.json({ success: false, error: `Missing ${writerEnv.keyName}`, requestId }, { status: 400 });
         }
-        if (!process.env[collaboratorKey]) {
-            return NextResponse.json({ success: false, error: `Missing ${collaboratorKey}`, requestId }, { status: 400 });
+        if (!collaboratorEnv.isPresent) {
+            return NextResponse.json({ success: false, error: `Missing ${collaboratorEnv.keyName}`, requestId }, { status: 400 });
         }
 
-        // 4. Core Logic with Timeout
+        // 4. Model Normalization
+        try {
+            const originalWriterModel = request.writerModel;
+            const originalCollaboratorModel = request.collaboratorModel;
+
+            request.writerModel = normalizeModelId(request.writerProvider, request.writerModel);
+            request.collaboratorModel = normalizeModelId(request.collaboratorProvider, request.collaboratorModel);
+
+            console.log(`[DEBUG] rid=${requestId} writer_model: IN="${originalWriterModel}" OUT="${request.writerModel}"`);
+            console.log(`[DEBUG] rid=${requestId} collaborator_model: IN="${originalCollaboratorModel}" OUT="${request.collaboratorModel}"`);
+        } catch (normError: any) {
+            return NextResponse.json({ success: false, error: normError.message, requestId }, { status: 400 });
+        }
+
+        // 5. Core Logic with Timeout
         const TIMEOUT_MS = 60 * 1000;
 
         const convergencePromise = runConvergence(request);
@@ -95,12 +141,12 @@ export async function POST(req: NextRequest) {
 
         const response = await Promise.race([convergencePromise, timeoutPromise]);
 
-        // 5. Safe Logging
+        // 6. Safe Logging (Summary)
         const stopReason = response.success ? response.data?.stopReason : 'N/A';
         const totalTimeMs = response.success ? response.data?.totalTimeMs : 0;
         console.log(`[CONVERGE] rid=${requestId} tid=${request.templateId} wp=${request.writerProvider} cp=${request.collaboratorProvider} stop=${stopReason} time=${totalTimeMs}ms`);
 
-        // 6. Return Response
+        // 7. Return Response
         return NextResponse.json({ ...response, requestId });
     } catch (err: any) {
         if (err.message === 'TIMEOUT') {

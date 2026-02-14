@@ -26,14 +26,14 @@ export const MODEL_REGISTRY: Record<ProviderType, ModelOption[]> = {
 export function getDefaultModels(templateId: string): { writerModel: string; collaboratorModel: string } {
     if (templateId === 'software-spec') {
         return {
-            writerModel: 'claude-sonnet-4-5-20250929',
-            collaboratorModel: 'gpt-4o',
+            writerModel: 'gpt-4o',
+            collaboratorModel: 'gemini-2.0-flash',
         };
     }
 
     // Default (e.g., email-reply) faster/cheaper
     return {
         writerModel: 'gpt-4o-mini',
-        collaboratorModel: 'claude-haiku-4-5-20251001',
+        collaboratorModel: 'gemini-2.0-flash',
     };
 }

@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { GenerateOptions, ProviderAdapter } from '../types';
 import { validateAndRetry } from '../utils/json';
 import { z } from 'zod';
@@ -25,9 +26,16 @@ export class OpenAIAdapter implements ProviderAdapter {
     }
 
     async generate(prompt: string, options?: GenerateOptions): Promise<string> {
+        const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
+
+        if (options?.systemPrompt) {
+            messages.push({ role: 'system', content: options.systemPrompt });
+        }
+        messages.push({ role: 'user', content: prompt });
+
         const response = await this.client.chat.completions.create({
             model: options?.model || 'gpt-4o',
-            messages: [{ role: 'user', content: prompt }],
+            messages,
             temperature: options?.temperature ?? 0.7,
             max_tokens: options?.maxTokens,
         });
@@ -37,15 +45,19 @@ export class OpenAIAdapter implements ProviderAdapter {
 
     async generateJson<T>(prompt: string, schema: any, options?: GenerateOptions): Promise<T> {
         const generateFn = async () => {
+            const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+                {
+                    role: 'system',
+                    content: options?.systemPrompt
+                        ? `${options.systemPrompt}\n\nYou must output only valid JSON. Do not include any explanation or markdown formatting outside the JSON.`
+                        : 'You are a helpful assistant that outputs only valid JSON. Do not include any explanation or markdown formatting outside the JSON.'
+                },
+                { role: 'user', content: prompt }
+            ];
+
             const response = await this.client.chat.completions.create({
                 model: options?.model || 'gpt-4o',
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are a helpful assistant that outputs only valid JSON. Do not include any explanation or markdown formatting outside the JSON.'
-                    },
-                    { role: 'user', content: prompt }
-                ],
+                messages,
                 response_format: { type: 'json_object' },
                 temperature: options?.temperature ?? 0,
                 max_tokens: options?.maxTokens,

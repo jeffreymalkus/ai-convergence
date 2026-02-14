@@ -33,6 +33,7 @@ export class AnthropicAdapter implements ProviderAdapter {
             model: options?.model || 'claude-sonnet-4-5-20250929',
             max_tokens: options?.maxTokens || 4096,
             temperature: options?.temperature ?? 0.7,
+            ...(options?.systemPrompt ? { system: options.systemPrompt } : {}),
             messages: [{ role: 'user', content: prompt }],
         });
 
@@ -42,7 +43,10 @@ export class AnthropicAdapter implements ProviderAdapter {
 
     async generateJson<T>(prompt: string, schema: any, options?: GenerateOptions): Promise<T> {
         const generateFn = async () => {
-            const systemPrompt = 'You are a helpful assistant that outputs only valid JSON. Do not include any explanation or markdown formatting.';
+            const systemPrompt = options?.systemPrompt
+                ? `${options.systemPrompt}\n\nYou must output only valid JSON. Do not include any explanation or markdown formatting.`
+                : 'You are a helpful assistant that outputs only valid JSON. Do not include any explanation or markdown formatting.';
+
             const response = await this.client.messages.create({
                 model: options?.model || 'claude-sonnet-4-5-20250929',
                 max_tokens: options?.maxTokens || 4096,

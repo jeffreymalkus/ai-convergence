@@ -26,7 +26,8 @@ export class GoogleAdapter implements ProviderAdapter {
 
     async generate(prompt: string, options?: GenerateOptions): Promise<string> {
         const model = this.genAI.getGenerativeModel({
-            model: options?.model || 'gemini-2.0-flash'
+            model: options?.model || 'gemini-2.0-flash',
+            ...(options?.systemPrompt ? { systemInstruction: options.systemPrompt } : {}),
         });
 
         const result = await model.generateContent({
@@ -43,13 +44,18 @@ export class GoogleAdapter implements ProviderAdapter {
 
     async generateJson<T>(prompt: string, schema: any, options?: GenerateOptions): Promise<T> {
         const generateFn = async () => {
+            const systemInstruction = options?.systemPrompt
+                ? `${options.systemPrompt}\n\nYou must output only valid JSON. Do not include markdown formatting or explanations.`
+                : 'You are a helpful assistant. Respond with valid JSON only. Do not include markdown formatting or explanations.';
+
             const model = this.genAI.getGenerativeModel({
                 model: options?.model || 'gemini-2.0-flash',
+                systemInstruction,
             });
 
             const result = await model.generateContent({
                 contents: [
-                    { role: 'user', parts: [{ text: `Respond with valid JSON only. Do not include markdown formatting or explanations. ${prompt}` }] }
+                    { role: 'user', parts: [{ text: `Respond with valid JSON only. ${prompt}` }] }
                 ],
                 generationConfig: {
                     temperature: options?.temperature ?? 0,

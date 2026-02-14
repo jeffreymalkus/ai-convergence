@@ -8,6 +8,7 @@ export interface GenerateOptions {
   temperature?: number
   maxTokens?: number
   model?: string
+  systemPrompt?: string
 }
 
 export interface ProviderAdapter {
